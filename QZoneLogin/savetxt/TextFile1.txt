@@ -1,0 +1,127 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Net;
+using System.IO;
+using System.Drawing;
+using System.Security.Cryptography;
+
+namespace testWebRequest
+{
+    class Program
+    {
+        public static String qq = "444132348";
+        private static String password = "ilove1314";
+        public static String Appkey = "801216331";
+        static void Main(String[] args)
+        {
+           QQLogin( qq, password);
+        }
+
+        public static void QQLogin(String QQ, String password)
+        {
+            // string Appsecret = "9a3072875e25b570cc05b0d71442f718";
+
+            HttpWebRequest myReq = (HttpWebRequest)WebRequest.Create("https://ssl.ptlogin2.qq.com/check?uin=" + qq + "&appid=46000101&ptlang=2052&js_type=2&js_ver=10009&r=0.7948186025712065");
+            myReq.UserAgent = "User-Agent:Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.2; .NET CLR 1.0.3705";
+            myReq.Accept = "*/*";
+            myReq.KeepAlive = true;
+            myReq.Headers.Add("Accept-Language", "zh-cn,en-us;q=0.5");
+            HttpWebResponse result = (HttpWebResponse)myReq.GetResponse();
+            Stream receviceStream = result.GetResponseStream();
+            StreamReader readerOfStream = new StreamReader(receviceStream, System.Text.Encoding.GetEncoding("utf-8"));
+            String strHTML = readerOfStream.ReadToEnd();
+            readerOfStream.Close();
+            receviceStream.Close();
+            result.Close();
+            Console.WriteLine(strHTML); //打印获取的网页内容
+
+            String check = strHTML.Substring(strHTML.IndexOf("(") + 1, strHTML.LastIndexOf(")") - strHTML.IndexOf("(") - 1);
+            String[] checkNum = check.Replace("'", "").Split(',');  //验证码数组
+            String pass = "";
+            String responseData = "";
+            if ("1".Equals(checkNum[0]))
+            {
+                // uin为qq号或者微博用户名
+                HttpWebRequest myReq1 = (HttpWebRequest)WebRequest.Create("http://captcha.qq.com/getimage?aid=46000101&r=0.3478789969909082&uin=" + qq + "&vc_type=" + checkNum[1] + "");
+                myReq1.UserAgent = "User-Agent:Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.2; .NET CLR 1.0.3705";
+                myReq1.Accept = "*/*";
+                myReq1.KeepAlive = true;
+                myReq1.Headers.Add("Accept-Language", "zh-cn,en-us;q=0.5");
+                HttpWebResponse result1 = (HttpWebResponse)myReq.GetResponse();
+                Stream receviceStream1 = result1.GetResponseStream();
+                System.Drawing.Image.FromStream(receviceStream1).Save(@"d:/code.jpg");
+                //Image img = Image.FromStream(receviceStream1);
+                //OutputStream os = new FileOutputStream("c:/code.jpg");
+                //byte[] b = EntityUtils.toByteArray(response2.getEntity());
+                //os.write(b, 0, b.length);
+                //os.close();
+                //Scanner in = new Scanner(System.in);
+                //responseData = in.nextLine();
+                //in.close();
+            }
+            else
+            {
+                responseData = checkNum[1];
+            }
+            /** *******************加密密码************************** */
+            pass = GetPassword(checkNum[2], password, responseData);
+            Console.WriteLine(pass);
+            Console.WriteLine(responseData);
+            /** *********************** 登录 *************************** */
+            HttpWebRequest myReq2 = (HttpWebRequest)WebRequest.Create("https://ssl.ptlogin2.qq.com/login?ptlang=2052&u=" + qq + "&p=" + pass + "&verifycode=" + responseData + "&aid=46000101&target=top&u1=https%3A%2F%2Fopen.t.qq.com%2Fcgi-bin%2Foauth2%2Fauthorize%3Fclient_id%3D"
+                        + Appkey + "%26response_type%3Dcode%26redirect_uri=" + "http://www.baidu.com" + "&ptredirect=1&h=1&from_ui=1&dumy=&qlogin_param=abbfew=ddd&wording=%E6%8E%88%E6%9D%83&fp=loginerroralert&action=8-13-240977&g=1&t=1&dummy=&js_type=2&js_ver=10009");
+            myReq2.UserAgent = "User-Agent:Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.2; .NET CLR 1.0.3705";
+            myReq2.Accept = "*/*";
+            myReq2.KeepAlive = true;
+            myReq2.Headers.Add("Accept-Language", "zh-cn,en-us;q=0.5");
+            HttpWebResponse result2 = (HttpWebResponse)myReq2.GetResponse();
+            Stream receviceStream2 = result2.GetResponseStream();
+            StreamReader readerOfStream2 = new StreamReader(receviceStream2, System.Text.Encoding.GetEncoding("utf-8"));
+            String entityxc = readerOfStream2.ReadToEnd();
+            readerOfStream2.Close();
+            receviceStream2.Close();
+            result2.Close();
+            Console.Write(entityxc); //打印登陆返回结果
+        }
+
+        public static String GetPassword(String uin, String password, String verifycode)
+        {
+            String P = hexchar2bin(MD5_Encrypt(password));
+            String U = MD5_Encrypt(P + hexchar2bin(uin.Replace("\\x", "").ToUpper()));
+            String V = MD5_Encrypt(U + verifycode.ToUpper());
+            return V;
+        }
+
+        public static String MD5_Encrypt(String md5_str)
+        {
+            System.Security.Cryptography.MD5 md5 = System.Security.Cryptography.MD5CryptoServiceProvider.Create();
+            byte[] bytes = System.Text.Encoding.ASCII.GetBytes(md5_str);
+            byte[] bytes1 = md5.ComputeHash(bytes);
+
+            System.Text.StringBuilder stringBuilder = new StringBuilder();
+            foreach (var item in bytes1)
+            {
+                stringBuilder.Append(item.ToString("x").PadLeft(2, '0'));
+            }
+            return stringBuilder.ToString().ToUpper();
+        }
+
+        public static String hexchar2bin(String sPassword)
+        {
+            String str1 = "";
+            for (int i = 0; i < sPassword.Length; i = i + 2)
+            {
+                str1 += Convert.ToChar(Convert.ToInt32(sPassword.Substring(i, 2), 16));
+            }
+            return str1;
+        }
+
+
+      
+    }
+}
+
+

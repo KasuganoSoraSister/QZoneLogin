@@ -1,0 +1,130 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.IO;
+using System.Drawing;
+using System.Security.Cryptography;
+using System.Net;
+
+namespace testWebRequest
+{
+    public class Program
+    {
+        public static String qq = "909032822";
+        private static String password = "cba6768290";
+       
+        static void Main(String[] args)
+        {
+            QQLogin(qq, password);
+        }
+
+        public static void QQLogin(String QQ, String password)
+        {
+            String oauthToken = "1c8c46864a654d8eb36589b56ba99dc6";
+            String forPrepare = "http://open.t.qq.com/cgi-bin/authorize?oauth_token=" + oauthToken;
+            List<RetData> outcomeFromPrepare = new List<RetData>();
+            CookieContainer cookieNull = new CookieContainer();
+            HttpHelper helper = new HttpHelper();
+            String strHTML;
+            outcomeFromPrepare = helper.GetHtml(forPrepare, cookieNull);
+            strHTML = outcomeFromPrepare[0].str;
+            int flag = strHTML.IndexOf("sessionKey=");
+            String sessionKey = strHTML.Substring(flag+11 , 32);
+
+            //Console.WriteLine("sessionKey : "+sessionKey);
+
+
+            String forCheckUrl = "http://check.ptlogin2.qq.com/check?uin=" + QQ + "&appid=46000101&u1=http%3A%2F%2Fopen.t.qq.com%2Fcgi-bin%2Fauthorize%3Foauth_token%3D"+oauthToken+"%26checkStatus%3Dchecked%26checkType%3Dauthorize%26sessionKey%3D"+sessionKey;
+            List<RetData> outcomeFromCheck = new List<RetData>();
+            HttpHelper helper1 = new HttpHelper();
+            String receiveFromCheck;
+            outcomeFromCheck = helper.GetHtml(forCheckUrl, outcomeFromPrepare[0].cookie);
+            receiveFromCheck = outcomeFromCheck[0].str;
+            Console.WriteLine(receiveFromCheck); //打印获取的网页内容
+
+
+            String check = receiveFromCheck.Substring(receiveFromCheck.IndexOf("(") + 1, receiveFromCheck.LastIndexOf(")") - receiveFromCheck.IndexOf("(") - 1);
+            String[] checkNum = check.Replace("'", "").Split(',');  //验证码数组
+
+            String pass = "";
+            String responseData = "";
+
+            if ("1".Equals(checkNum[0]))
+            {
+                String forImageUrl = "http://captcha.qq.com/getimage?aid=549000912&r=0.3478789969909082&uin=" + QQ + "&vc_type=" + checkNum[1] + "";
+
+                Stream receiveStream = helper.GetStream(forImageUrl, outcomeFromCheck[0].cookie);
+
+                System.Drawing.Image.FromStream(receiveStream).Save(@"d:/code.jpg");
+                Image img = Image.FromStream(receiveStream);
+                responseData = "XXXX";
+            }
+            else
+            {
+                responseData = checkNum[1];
+            }
+
+            PasswordHelper helper2 = new PasswordHelper();
+            pass = helper2.GetPassword(QQ, password, responseData);
+
+            //password2 helper2 = new password2();
+            //pass = helper2.GetPassword(checkNum[2], password, responseData);
+
+            //Console.WriteLine("Encrypted Password :"+pass);
+            /** *********************** 登录 *************************** */
+            String forLoginUrl = "http://ptlogin2.qq.com/login?u=" + QQ + "&p=" + pass + "&verifycode=" + responseData + "&aid=46000101&u1=http%3A%2F%2Fopen.t.qq.com%2Fcgi-bin%2Fauthorize%3Foauth_token%3D" + oauthToken +"%26checkStatus%3Dchecked%26checkType%3Dauthorize%26sessionKey%3D"+sessionKey+"%3Df43c743a7df819481b7016dbc5906adc&h=1&ptredirect=1&ptlang=2052&daid=6&from_ui=1&dumy=&low_login_enable=0&regmaster=&fp=loginerroralert&action=5-13-1397633736826&mibao_css=&t=1&g=1&js_ver=10074&js_type=1";
+           List<RetData> outcomeFromLogin = new List<RetData>();
+           outcomeFromLogin = helper.GetHtml(forLoginUrl, outcomeFromCheck[0].cookie);
+
+           String revFromLogin = outcomeFromLogin[0].str;
+           Console.WriteLine(revFromLogin);
+
+          // String referer = "http://ui.ptlogin2.qq.com/cgi-bin/login?appid=46000101&s_url=http%3A%2F%2Fopen.t.qq.com%2Fcgi-bin%2Fauthorize%3Foauth_token%3D" + oauthToken + "%26checkStatus%3Dchecked%26checkType%3Dauthorize%26sessionKey%3D"+sessionKey;
+           //List<RetData> outcomeFromIndexPage = new List<RetData>();
+           //String getVcodeUrl = "http://open.t.qq.com/cgi-bin/authorize?oauth_token="+oauthToken+"&checkStatus=checked&checkType=authorize&sessionKey="+sessionKey;
+           //helper.GetRedirectUrl(getVcodeUrl, referer,outcomeFromLogin[0].cookie);
+           
+           //    遍历cookie的内容
+            /*
+           GetCookieContent hehe1 = new GetCookieContent();
+           List<Cookie> Cookies1 = new List<Cookie>();
+           Cookies1 = hehe1.GetAllCookies(outcomeFromLogin[0].cookie);
+           Console.WriteLine(Cookies1.Capacity);
+           int i = 0;
+           while (i < 11)
+           {
+               Console.Write(Cookies1[i].Name + " : ");
+               Console.WriteLine(Cookies1[i].Value);
+               i++;
+           }
+            */
+        }
+    }
+
+
+    public class RetData
+    {
+        public string str;
+        public CookieContainer cookie;
+
+        public RetData(string st, CookieContainer coo)
+        {
+            this.str = st;
+            this.cookie = coo;
+        }
+
+        public string getstr
+        {
+            get { return str; }
+        }
+        public CookieContainer getcookie
+        {
+            get { return cookie; }
+        }
+    }
+
+}
+
+

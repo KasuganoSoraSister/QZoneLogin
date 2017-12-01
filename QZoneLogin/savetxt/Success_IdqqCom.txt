@@ -1,0 +1,106 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.IO;
+using System.Drawing;
+using System.Security.Cryptography;
+using System.Net;
+
+namespace testWebRequest
+{
+    public class Program
+    {
+        public static String qq = "909032822";
+        private static String password = "cba6768290";
+
+        static void Main(String[] args)
+        {
+            QQLogin(qq, password);
+        }
+
+        public static void QQLogin(String QQ, String password)
+        {
+			HttpHelper helper = new HttpHelper();
+			String pass = "";
+            String responseData = "";
+
+			
+			//获取验证信息
+            //验证信息格式为：ptui_checkVC('0','!MIW','\x00\x00\x00\x00\x9a\x65\x0f\xd7') 
+            //其中分为三部分，第一个值0或1判断是否需要图片验证码
+            //                          第二个值是默认验证码，若不需要图片验证码，就用此验证码来提交
+            //                          第三部分是所使用的QQ号码的16进制形式
+            String forCheckUrl = "http://check.ptlogin2.qq.com/check?uin=" + QQ + "&appid=1006102&r=0.10299430438317358";
+            List<RetData> outcomeFromCheck = new List<RetData>();
+            CookieContainer cookieNull = new CookieContainer();            
+            String strHTML;
+            outcomeFromCheck = helper.GetHtml(forCheckUrl, cookieNull);
+            strHTML = outcomeFromCheck[0].str;
+            Console.WriteLine(strHTML); ////打印获取的验证内容
+           
+            String check = strHTML.Substring(strHTML.IndexOf("(") + 1, strHTML.LastIndexOf(")") - strHTML.IndexOf("(") - 1);
+            String[] checkNum = check.Replace("'", "").Split(',');  //验证码数组
+
+			//将验证码信息的三部分存入数组
+            if ("1".Equals(checkNum[0]))  //判断是否需要图片验证码
+            {
+                String forImageUrl = "http://captcha.qq.com/getimage?aid=1006102&r=0.3478789969909082&uin=" + QQ + "&vc_type=" + checkNum[1] + "";
+                Stream receiveStream = helper.GetStream(forImageUrl, outcomeFromCheck[0].cookie);
+                System.Drawing.Image.FromStream(receiveStream).Save(@"d:/code.jpg"); //将获取的图片验证码存入电脑
+                Image img = Image.FromStream(receiveStream);
+                responseData = "XXXX";  //将读取到的图片验证码输入到responseData中
+            }
+            else   //若不需图片验证码，验证码就等于checkNum[1]
+            {
+                responseData = checkNum[1];
+            }
+
+			//获取加密密码
+            PasswordHelper helper2 = new PasswordHelper();
+            pass = helper2.GetPassword(QQ, password, responseData);
+            //Console.WriteLine(pass);
+
+            /** *********************** 登录 *************************** */
+           String forLoginUrl = "http://ptlogin2.qq.com/login?u=" + QQ + "&verifycode=" + responseData + "&p=" + pass + "&aid=1006102&u1=http%3A%2F%2Fid.qq.com%2Findex.html&h=1&ptredirect=1&ptlang=2052&from_ui=1&dumy=&fp=loginerroralert&action=8-29-82478035&mibao_css=&t=1&g=1";
+           List<RetData> outcomeFromLogin = new List<RetData>();
+           outcomeFromLogin = helper.GetHtml(forLoginUrl  , outcomeFromCheck[0].cookie);
+           String revFromLogin = outcomeFromLogin[0].str;
+           Console.WriteLine(revFromLogin);
+
+           List<RetData> outcomeFromIndexPage = new List<RetData>();
+           outcomeFromIndexPage = helper.GetHtml("http://id.qq.com/index.html#info", outcomeFromLogin[0].cookie);
+           //Console.WriteLine(outcomeFromIndexPage[0].str);
+           StreamWriter swrite = new StreamWriter("E:/11.txt", false, Encoding.UTF8);
+           swrite.WriteLine(outcomeFromIndexPage[0].str);
+           swrite.Close();
+           swrite.Dispose();
+        }
+    }
+
+
+    public class RetData
+    {
+        public string str;
+        public CookieContainer cookie;
+
+        public RetData(string st, CookieContainer coo)
+        {
+            this.str = st;
+            this.cookie = coo;
+        }
+
+        public string getstr
+        {
+            get { return str; }
+        }
+        public CookieContainer getcookie
+        {
+            get { return cookie; }
+        }
+    }
+
+}
+
+
